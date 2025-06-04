@@ -12,11 +12,17 @@ $row = mysqli_fetch_assoc($res);
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Profil</title></head>
+<head><title>Profil</title>
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
 <body>
 <h2>Profil Pengguna</h2>
 <p>Nama Lengkap: <?php echo $row['fullname']; // TODO C3-3: htmlspecialchars() ?></p>
 <p>Email: <?php echo $row['email']; // TODO C3-4: htmlspecialchars() ?></p>
 <p><a href="home.php">Kembali</a></p>
+<!-- jQuery & Bootstrap JS -->
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

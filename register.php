@@ -12,7 +12,10 @@ if (isset($_POST['username'], $_POST['password'])) {
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Register</title></head>
+<head><title>Register</title>
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
 <body>
 <h2>Register</h2>
 <form method="POST">
@@ -20,5 +23,8 @@ if (isset($_POST['username'], $_POST['password'])) {
     <label>Password:</label><input type="password" name="password"><br>
     <button type="submit">Register</button>
 </form>
+<!-- jQuery & Bootstrap JS -->
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

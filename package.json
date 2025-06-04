@@ -1,0 +1,25 @@
+{
+  "name": "project",
+  "version": "1.0.0",
+  "description": "### Plan Ini isi apaan ### Code: Git ### Build npm ### Test OWASP ZAP ### Release & Deploy Jenkins ### Operate Docker ### Monitor Prometheus",
+  "main": "index.js",
+  "scripts": {
+    "build": "mkdir -p public/css public/js && cp node_modules/bootstrap/dist/css/bootstrap.min.css public/css/ && cp node_modules/bootstrap/dist/js/bootstrap.bundle.min.js public/js/ && cp node_modules/jquery/dist/jquery.min.js public/js/",
+    "start": "npm run build && echo 'Project built! Run your PHP server manually'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meyudha/Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/meyudha/Project/issues"
+  },
+  "homepage": "https://github.com/meyudha/Project#readme",
+  "dependencies": {
+    "bootstrap": "^5.3.0",
+    "jquery": "^3.7.0"
+  }
+}

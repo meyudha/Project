@@ -4,7 +4,10 @@ session_start();
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Login</title></head>
+<head><title>Login</title>
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
 <body>
 <h2>Login</h2>
 <form method="GET" action="authenticate.php"><!-- TODO C1-1: Ganti GET menjadi POST dan tambahkan hidden token CSRF -->
@@ -14,5 +17,8 @@ session_start();
 </form>
 <!-- TODO C0-1: Arahkan semua traffic ke HTTPS dan pertimbangkan header HSTS -->
 <p>Belum punya akun? <a href="register.php">Register di sini</a></p>
+<!-- jQuery & Bootstrap JS -->
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
