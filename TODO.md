@@ -1,6 +1,6 @@
-# NGAPAIN
+# JANLUP DOKUMENTASI
 
-## Build
+## BUILD
 ### Script
 Instal npm
 ```
@@ -9,6 +9,10 @@ sudo apt install npm
 Instal front dependencies npm
 ```
 npm install bootstrap@5 jquery@3
+```
+Inisialisasi npm
+```
+npm init -y
 ```
 di dalam <b>package.json</b>, masukkan baris kode ini ke dalam bagian "scripts":
 ```
@@ -30,7 +34,7 @@ Build
 ```
 npm run build
 ```
-# Konfigurasi mysqli-connect
+### Konfigurasi mysqli-connect
 Instal php-mysqli
 ```
 sudo apt install php-mysqli
@@ -51,7 +55,7 @@ extension=mysqli
 ;extension=oci8_12c  ; Use with Oracle Database 12c Instant Client
 ;extension=oci8_19  ; Use with Oracle Database 19 Instant Client
 ```
-# Konfigurasi hak akses session
+### Konfigurasi hak akses session
 Defaultnya, session akan tersimpan di
 ```
 /var/lib/php/sessions
