@@ -1,8 +1,19 @@
 # JANLUP DOKUMENTASI
-## Dependency/Paket yang harus di instal
-`php`
+## Dependencies
+> [!IMPORTANT]
+> Sebelum Mulai, Instal beberapa paket dibawah terlebih dahulu
+* apache2
+```
+sudo apt install apache2
+```
+* mySQL
+```
+sudo apt install mysql-server
+```
+* php
 ```
 sudo apt install php
+sudo apt install php-mysql
 ```
 ## BUILD
 ### Script
@@ -39,17 +50,11 @@ Build
 npm run build
 ```
 ### Konfigurasi mysqli-connect
-Instal php-mysqli
-```
-sudo apt install php-mysqli
-```
-Restart apache2 service
-```
-systemctl restart apache2
-```
 buka file <b>php.ini</b> dengan privilege root (disarankan pakai aplikasi text editor seperti sublime-text)
 ```
+# Pilih salah satu, tergantung versi php yang terinstal
 sudo subl /etc/php/8.1/cli/php.ini
+sudo subl /etc/php/8.3/cli/php.ini
 ```
 Carilah baris kode *;extension=mysqli* (pada kasus ini, berada di line 930) lalu hapus komentar (;) yang berada di depan kode tersebut, sehingga hasil akhir akan terlihat seperti ini
 ```
@@ -58,6 +63,10 @@ Carilah baris kode *;extension=mysqli* (pada kasus ini, berada di line 930) lalu
 extension=mysqli
 ;extension=oci8_12c  ; Use with Oracle Database 12c Instant Client
 ;extension=oci8_19  ; Use with Oracle Database 19 Instant Client
+```
+Restart apache2 service
+```
+systemctl restart apache2
 ```
 ### Konfigurasi hak akses session
 Defaultnya, session akan tersimpan di
@@ -71,7 +80,7 @@ sudo chown -R www-data:www-data /var/lib/php/sessions
 ### Start 
 Start aplikasi
 ```
-php -S localhost:8000
+sudo php -S localhost:8000
 ```
 Pindah ke http://localhost:8000
 
