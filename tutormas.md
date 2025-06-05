@@ -1,4 +1,4 @@
-### MOHON DIBACA YGY
+# MOHON DIBACA YGY
 ## Instal git CLI
 copy/paste untuk instal paket gh
 ```
@@ -16,7 +16,7 @@ copy/paste lagi
 sudo apt update
 sudo apt install gh
 ```
-## LOGIN 
+### LOGIN 
 copy paste buat login
 ```
 gh auth login
@@ -39,8 +39,23 @@ Nanti ada pertanyaan
 ->Login with a web browser
 ```
 Ntar dikasih kode, masukin di browser
-## CLONE
+### CLONE
 clone repo
 ```
 gh repo clone meyudha/Project
+```
+
+## Upload files
+**Kalo udah edit file, cara push nya gini**  
+Tambahin ke repo lokal dulu
+```
+git add .
+```
+Commit ke repo local
+```
+git commmit -m "<bebas isi apa aja>"
+```
+Push ke repo remote
+```
+git push
 ```
