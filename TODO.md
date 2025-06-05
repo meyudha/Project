@@ -1,5 +1,9 @@
 # JANLUP DOKUMENTASI
-
+## Dependency/Paket yang harus di instal
+`php`
+```
+sudo apt install php
+```
 ## BUILD
 ### Script
 Instal npm
@@ -64,6 +68,12 @@ Ubah hak akses direktori tersebut menggunakan command
 ```
 sudo chown -R www-data:www-data /var/lib/php/sessions
 ```
+### Start 
+Start aplikasi
+```
+php -S localhost:8000
+```
+Pindah ke http://localhost:8000
 
 ## Test
 Instal OWASP ZAP nya gimana
