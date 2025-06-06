@@ -1,28 +1,26 @@
 <?php
-require 'db.php';
 session_start();
+require 'db.php';
 
-$id = $_GET['id'] ?? 0; // TODO C3-2: Pastikan user hanya melihat profilnya sendiri
+if (!isset($_SESSION['account_loggedin'])) {
+    header('Location: index.php');
+    exit;
+}
 
-// TODO C1-7: Ganti query ini dengan prepared statement
-$sql = "SELECT fullname, email FROM accounts WHERE id = $id";
-$res = mysqli_query($con, $sql) or die(mysqli_error($con));
-
-$row = mysqli_fetch_assoc($res);
+$id = $_SESSION['account_id'];
+$stmt = mysqli_prepare($con, "SELECT fullname, email FROM accounts WHERE id = ?");
+mysqli_stmt_bind_param($stmt, "i", $id);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
+$row = mysqli_fetch_assoc($result);
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Profil</title>
-<!-- Bootstrap CSS -->
-<link rel="stylesheet" href="/css/bootstrap.min.css">
-</head>
+<head><title>Profil</title></head>
 <body>
 <h2>Profil Pengguna</h2>
-<p>Nama Lengkap: <?php echo $row['fullname']; // TODO C3-3: htmlspecialchars() ?></p>
-<p>Email: <?php echo $row['email']; // TODO C3-4: htmlspecialchars() ?></p>
+<p>Nama Lengkap: <?php echo htmlspecialchars($row['fullname']); ?></p>
+<p>Email: <?php echo htmlspecialchars($row['email']); ?></p>
 <p><a href="home.php">Kembali</a></p>
-<!-- jQuery & Bootstrap JS -->
-<script src="/js/jquery.min.js"></script>
-<script src="/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
