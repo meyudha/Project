@@ -1,12 +1,11 @@
 pipeline {
     agent any
     tools {
-        nodejs 'nodejs' // Name from Global Tools config
+        nodejs 'nodejs-18' // Name from Global Tools config
     }
     
     environment {
         DEPLOY_TARGET = '/var/www/your-project'
-        SSH_CREDENTIALS = credentials('deploy-ssh-key')
     }
 
     stages {
@@ -44,9 +43,7 @@ pipeline {
                         --exclude='.git' \
                         --exclude='node_modules' \
                         --exclude='.env' \
-                        -e ssh ./ user@server:${DEPLOY_TARGET}
                     """
-                    sh "ssh user@server 'cd ${DEPLOY_TARGET} && php artisan optimize'"
                 }
             }
         }
