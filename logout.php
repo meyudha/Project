@@ -1,8 +1,9 @@
 <?php
 session_start();
-// TODO C2-3: Hapus seluruh data sesi sebelum destroy
+$_SESSION = [];
 session_destroy();
-// TODO C2-4: Regenerasi ID sesi untuk menonaktifkan sesi lama
+session_start();
+session_regenerate_id(true);
 header('Location: index.php');
 exit;
 ?>
