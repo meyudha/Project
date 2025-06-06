@@ -1,0 +1,31 @@
+{
+    "name": "meyudha/Project",
+    "description": "DevOps",
+    "type": "project",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "squizlabs/php_codesniffer": "^3.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "YourApp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "YourApp\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs-check": "phpcs --standard=PSR12 src/",
+        "cs-fix": "phpcbf --standard=PSR12 src/"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
