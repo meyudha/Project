@@ -1,7 +1,7 @@
 pipeline {
     agent any
     tools {
-        nodejs 'nodejs' // Name from Global Tools config
+        nodejs 'nodejs-18' // Name from Global Tools config
     }
     
     environment {
