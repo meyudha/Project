@@ -6,7 +6,6 @@ pipeline {
     
     environment {
         DEPLOY_TARGET = '/var/www/your-project'
-        SSH_CREDENTIALS = credentials('deploy-ssh-key')
     }
 
     stages {
@@ -44,9 +43,7 @@ pipeline {
                         --exclude='.git' \
                         --exclude='node_modules' \
                         --exclude='.env' \
-                        -e ssh ./ user@server:${DEPLOY_TARGET}
                     """
-                    sh "ssh user@server 'cd ${DEPLOY_TARGET} && php artisan optimize'"
                 }
             }
         }
