@@ -1,24 +1,20 @@
 <?php
-// index.php
 session_start();
+if (empty($_SESSION['token'])) {
+    $_SESSION['token'] = bin2hex(random_bytes(32));
+}
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Login</title>
-<!-- Bootstrap CSS -->
-<link rel="stylesheet" href="/css/bootstrap.min.css">
-</head>
+<head><title>Login</title></head>
 <body>
 <h2>Login</h2>
-<form method="GET" action="authenticate.php"><!-- TODO C1-1: Ganti GET menjadi POST dan tambahkan hidden token CSRF -->
+<form method="POST" action="authenticate.php">
   <label>Username:</label><input type="text" name="username"><br>
   <label>Password:</label><input type="password" name="password"><br>
+  <input type="hidden" name="token" value="<?php echo $_SESSION['token']; ?>">
   <button type="submit">Login</button>
 </form>
-<!-- TODO C0-1: Arahkan semua traffic ke HTTPS dan pertimbangkan header HSTS -->
 <p>Belum punya akun? <a href="register.php">Register di sini</a></p>
-<!-- jQuery & Bootstrap JS -->
-<script src="/js/jquery.min.js"></script>
-<script src="/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
