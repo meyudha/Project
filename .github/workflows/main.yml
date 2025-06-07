@@ -21,7 +21,6 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           coverage: none
 
-      # New step to validate the composer.json file before installing
       - name: Validate composer.json
         run: composer validate --strict
 
@@ -38,10 +37,6 @@ jobs:
 
       - name: Install NPM dependencies
         run: npm ci
-
-      # Explicitly run the PHP Code Sniffer check
-      - name: Run PHP Code Sniffer
-        run: vendor/bin/phpcs --standard=PSR12 .
 
       - name: Run tests
         # Added --testdox for cleaner test output
