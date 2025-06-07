@@ -4,24 +4,20 @@
          bootstrap="vendor/autoload.php"
          colors="true"
          testdox="true">
-    
+
     <testsuites>
-        <testsuite name="Unit">
-            <directory suffix="Test.php">./tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory suffix="Test.php">./tests/Feature</directory>
+        <testsuite name="Project Tests">
+            <directory suffix="Test.php">./tests</directory>
         </testsuite>
     </testsuites>
-    
+
     <source>
         <include>
-            <directory suffix=".php">./src</directory>
+            <directory suffix=".php">.</directory>
         </include>
+        <exclude>
+            <directory suffix=".php">./vendor</directory>
+        </exclude>
     </source>
-    
-    <logging>
-        <junit outputFile="tests/results/phpunit.xml"/>
-        <testdoxHtml outputFile="tests/results/testdox.html"/>
-    </logging>
+
 </phpunit>
