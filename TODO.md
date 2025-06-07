@@ -120,11 +120,11 @@ Instal OWASP ZAP nya gimana
 ### Instal Jenkins lewat docker
 Bridge network
 ```
-docker network create jenkins
+sudo docker network create jenkins
 ```
 Download dan run `docker:dind`
 ```
-docker run \
+sudo docker run \
   --name jenkins-docker \
   --rm \
   --detach \
