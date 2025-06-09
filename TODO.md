@@ -174,13 +174,29 @@ docker run \
   --volume jenkins-docker-certs:/certs/client:ro \
   myjenkins-blueocean:2.504.2-1
 ```
+
+### Konfigurasi Jenkins
+Cloned Repository Ke Local
+```
+git clone https://github.com/meyudha/project.git
+```
+Navigasi ke Cloned Directory
+```
+cd project
+```
+Menjalankan jenkins dengan docker compose
+```
+git clone https://github.com/jenkins-docs/quickstart-tutorials.git
+```
+Navigasi ke quickstart-tutorials dan jalankan command ini
+```
+cd quickstart-tutorials
+docker-compose --profile node up -d
+```
 Akses http://localhost:8080  
 > [!NOTE]
 > lihat password dengan menggunakan command `docker logs <container_id>`  
 > Container id docker adalah text berformat hex rubbish setelah run jenkins
-
-### Konfigurasi Jenkins
-Kalem belum
 
 ## Deploy
 Deploy pake Jenkins nya gimana
