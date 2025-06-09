@@ -19,6 +19,7 @@ services:
       MYSQL_ROOT_PASSWORD: root123
     volumes:
       - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 volumes:
   db_data:
