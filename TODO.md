@@ -337,6 +337,9 @@ pipeline {
     }
 }
 ```
+### Hasil Setelah Dilakukan Deploy
+![image](https://github.com/user-attachments/assets/7b17a7dd-a0ec-4a7d-9321-c72fd8baaeb7)
+
 
 ## Operate
 Instal dockernya gimana
