@@ -199,10 +199,21 @@ Akses http://localhost:8080
 > Container id docker adalah text berformat hex rubbish setelah run jenkins
 
 ## Deploy
-Deploy pake Jenkins nya gimana
+### Membuat Job Baru 
+- Pada UI Jenkins, Klik **New Item** pada sidebar kiri
+- Pilih **pipeline** dan berikan nama job "Project"
+- Klik **Ok**
+### Konfigurasi Pipeline 
+- Cari Bagian **Pipeline** Section
+- Dibawah **Definition**, Pilih **Pipeline script from SCM**
+- Di **SCM**, Pilih **Git** dan tambahkan Repository URL
+- Pastikan Branch specifier sesuai dengan branch pada github (pada kasus ini branch ada di main)
 ```
-
+https://github.com/meyudha/project.git
 ```
+- Save Job
+### Update isi dari Jenkinsfile
+- 
 
 ## Operate
 Instal dockernya gimana
