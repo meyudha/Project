@@ -116,65 +116,6 @@ Instal OWASP ZAP nya gimana
 git clone https://github.com/zaproxy/zaproxy.git
 ```
 
-## Release
-### Instal Jenkins lewat docker
-Bridge network
-```
-sudo docker network create jenkins
-```
-Download dan run `docker:dind`
-```
-sudo docker run \
-  --name jenkins-docker \
-  --rm \
-  --detach \
-  --privileged \
-  --network jenkins \
-  --network-alias docker \
-  --env DOCKER_TLS_CERTDIR=/certs \
-  --volume jenkins-docker-certs:/certs/client \
-  --volume jenkins-data:/var/jenkins_home \
-  --publish 2376:2376 \
-  docker:dind \
-  --storage-driver overlay2
-```
-buat **Dockerfile** dengan konten:
-```
-FROM jenkins/jenkins:2.504.2-jdk21
-USER root
-RUN apt-get update && apt-get install -y lsb-release ca-certificates curl && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
-    chmod a+r /etc/apt/keyrings/docker.asc && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
-    https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" \
-    | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && apt-get install -y docker-ce-cli && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-USER jenkins
-RUN jenkins-plugin-cli --plugins "blueocean docker-workflow json-path-api"
-```
-Build
-```
-docker build -t myjenkins-blueocean:2.504.2-1 .
-```
-Run
-```
-docker run \
-  --name jenkins-blueocean \
-  --restart=on-failure \
-  --detach \
-  --network jenkins \
-  --env DOCKER_HOST=tcp://docker:2376 \
-  --env DOCKER_CERT_PATH=/certs/client \
-  --env DOCKER_TLS_VERIFY=1 \
-  --publish 8080:8080 \
-  --publish 50000:50000 \
-  --volume jenkins-data:/var/jenkins_home \
-  --volume jenkins-docker-certs:/certs/client:ro \
-  myjenkins-blueocean:2.504.2-1
-```
-
 ### Konfigurasi Jenkins
 Cloned Repository Ke Local
 ```
@@ -212,7 +153,7 @@ Akses http://localhost:8080
 https://github.com/meyudha/project.git
 ```
 - Save Job
-### Update isi dari 'workflow.yaml' untuk GitHub Action
+### Update Isi dari 'workflow.yaml' untuk GitHub Action
 ```
 name: CI/CD Pipeline with Docker
 
