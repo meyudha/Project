@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline with Docker
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 env:
   DEPLOY_TARGET: '/var/www/your-project'
+  DOCKER_IMAGE: 'meyudha/project-app'
 
 jobs:
   build-and-deploy:
@@ -17,25 +18,34 @@ jobs:
       image: php:8.2-cli
       options: --user root
 
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+
     steps:
     - name: Setup Environment
       run: |
         echo "=== Setting up Environment ==="
         
-        # Install required packages
+        # Install required packages including Docker
         apt-get update
-        apt-get install -y git unzip curl nodejs npm
+        apt-get install -y git unzip curl nodejs npm docker.io
         
         # Install Composer
         curl -sS https://getcomposer.org/installer | php
         mv composer.phar /usr/local/bin/composer
         chmod +x /usr/local/bin/composer
         
+        # Start Docker daemon
+        service docker start
+        
         # Verify installations
         php --version
         composer --version
         node --version
         npm --version
+        docker --version
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -73,11 +83,14 @@ jobs:
           echo "No npm test script found, skipping JS tests"
         fi
 
-    - name: Deploy
+    - name: Deploy with Docker
       run: |
-        echo "=== Deployment Stage ==="
-        echo "Project built successfully"
-        echo "Files ready for deployment to: ${{ env.DEPLOY_TARGET }}"
+        echo "=== Deployment with Docker ==="
+        # Build Docker Image
+        docker build -t ${{ env.DOCKER_IMAGE }} .
+        # Run Container
+        docker run -d -p 5000:5000 ${{ env.DOCKER_IMAGE }}
+        echo "Docker container deployed successfully."
 
     - name: Pipeline Status
       if: always()
