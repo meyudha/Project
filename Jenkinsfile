@@ -100,12 +100,18 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                    echo "=== Deployment Stage ==="
-                    echo "Project built successfully"
-                    echo "Files ready for deployment to: ${DEPLOY_TARGET}"
-                '''
-            }
-        }
+                echo "=== Deployment with Docker ==="
+
+            # Build Docker Image
+            docker build -t meyudha/project-app .
+
+            # Run Container
+            docker run -d -p 5000:5000 meyudha/project-app
+
+            echo "Docker container deployed successfully."
+        '''
+    }
+}
     }
     
     post {
