@@ -131,11 +131,6 @@ jobs:
         
         echo "Docker container deployed successfully on port 5000"
 
-    - name: Push to Docker Hub (Optional)
-      if: github.event_name == 'push'
-      run: |
-        docker push ${{ env.DOCKER_IMAGE }}:latest
-
   monitor:
     needs: deploy
     runs-on: ubuntu-latest
