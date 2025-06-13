@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'jenkins'
+    static_configs:
+      - targets: ['jenkins-ip:port']
+
+  - job_name: 'your-application'
+    static_configs:
+      - targets: ['your-application-ip:port']
+
