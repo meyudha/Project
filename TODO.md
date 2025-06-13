@@ -106,9 +106,9 @@ sudo chown -R www-data:www-data /var/lib/php/sessions
 ### Start 
 Start aplikasi
 ```
-sudo php -S localhost:8000
+sudo php -S localhost:8081
 ```
-Pindah ke http://localhost:8000
+Pindah ke http://localhost:8081
 
 ## Test
 Instal OWASP ZAP nya gimana
