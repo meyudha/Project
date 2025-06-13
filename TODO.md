@@ -214,128 +214,268 @@ https://github.com/meyudha/project.git
 - Save Job
 ### Update isi dari Jenkinsfile
 ```
-pipeline {
-    agent {
-        docker {
-            image 'php:8.2-cli'
-            args '-u root'
-        }
-    }
+name: CI/CD Pipeline with Docker
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEPLOY_TARGET: '/var/www/your-project'
+  DOCKER_IMAGE: 'meyudha/project-app'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
     
-    tools {
-        nodejs 'nodejs-18' // Name from Global Tools config
-    }
+    container:
+      image: php:8.2-cli
+      options: --user root
+
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+
+    steps:
+    - name: Setup Environment
+      run: |
+        echo "=== Setting up Environment ==="
+        
+        # Install required packages including Docker
+        apt-get update
+        apt-get install -y git unzip curl nodejs npm docker.io
+        
+        # Install Composer to current directory first
+        curl -sS https://getcomposer.org/installer | php
+        # Move to a writable location
+        cp composer.phar /usr/local/bin/composer
+        chmod +x /usr/local/bin/composer
+        
+        # Verify installations
+        php --version
+        composer --version
+        node --version
+        npm --version
+        docker --version
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        echo "=== Installing PHP Dependencies ==="
+        composer install --no-interaction --optimize-autoloader
+        
+        echo "=== Installing Node Dependencies ==="
+        npm ci
+
+    - name: Build Assets
+      run: |
+        echo "=== Building Assets ==="
+        npm run build
+
+    - name: Run PHP Tests
+      continue-on-error: true
+      run: |
+        echo "=== Running PHP Tests ==="
+        if [ -f "vendor/bin/phpunit" ]; then
+          vendor/bin/phpunit
+        else
+          echo "PHPUnit not found, skipping PHP tests"
+        fi
+
+    - name: Run JavaScript Tests
+      continue-on-error: true
+      run: |
+        echo "=== Running JavaScript Tests ==="
+        if npm list --json | grep -q '"test"'; then
+          npm test
+        else
+          echo "No npm test script found, skipping JS tests"
+        fi
+
+    - name: Deploy with Docker
+      run: |
+        echo "=== Deployment with Docker ==="
+        # Build Docker Image
+        docker build -t ${{ env.DOCKER_IMAGE }} .
+        # Run Container
+        docker run -d -p 5000:5000 ${{ env.DOCKER_IMAGE }}
+        echo "Docker container deployed successfully."
+
+    - name: Pipeline Status
+      if: always()
+      run: |
+        echo 'Pipeline execution completed'
+        if [ "${{ job.status }}" == "success" ]; then
+          echo 'Pipeline executed successfully!'
+        else
+          echo 'Pipeline failed. Check the logs above for details.'
+        fi
+
+---
+# Alternative version using separate jobs for better performance
+name: CI/CD Pipeline with Docker (Optimized)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEPLOY_TARGET: '/var/www/your-project'
+  DOCKER_IMAGE: 'meyudha/project-app'
+
+jobs:
+  setup-and-test:
+    runs-on: ubuntu-latest
     
-    environment {
-        DEPLOY_TARGET = '/var/www/your-project'
-    }
+    container:
+      image: php:8.2-cli
+      options: --user root
+
+    steps:
+    - name: Setup Environment
+      run: |
+        echo "=== Setting up Environment ==="
+        
+        # Install required packages
+        apt-get update
+        apt-get install -y git unzip curl nodejs npm
+        
+        # Install Composer
+        curl -sS https://getcomposer.org/installer | php
+        mv composer.phar /usr/local/bin/composer
+        chmod +x /usr/local/bin/composer
+        
+        # Verify installations
+        php --version
+        composer --version
+        node --version
+        npm --version
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: composer-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-
+
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: node-${{ hashFiles('package-lock.json') }}
+        restore-keys: node-
+
+    - name: Install Dependencies
+      run: |
+        echo "=== Installing PHP Dependencies ==="
+        composer install --no-interaction --optimize-autoloader
+        
+        echo "=== Installing Node Dependencies ==="
+        npm ci
+
+    - name: Build Assets
+      run: |
+        echo "=== Building Assets ==="
+        npm run build
+
+    - name: Run PHP Tests
+      continue-on-error: true
+      run: |
+        echo "=== Running PHP Tests ==="
+        if [ -f "vendor/bin/phpunit" ]; then
+          vendor/bin/phpunit
+        else
+          echo "PHPUnit not found, skipping PHP tests"
+        fi
+
+    - name: Run JavaScript Tests
+      continue-on-error: true
+      run: |
+        echo "=== Running JavaScript Tests ==="
+        if npm list --json | grep -q '"test"'; then
+          npm test
+        else
+          echo "No npm test script found, skipping JS tests"
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-files
+        path: |
+          vendor/
+          node_modules/
+          public/build/
+        retention-days: 1
+
+  deploy:
+    needs: setup-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-files
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub (Optional)
+      if: github.event_name == 'push'
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and Deploy Docker Container
+      run: |
+        echo "=== Building Docker Image ==="
+        docker build -t ${{ env.DOCKER_IMAGE }}:latest .
+        
+        echo "=== Deploying Container ==="
+        # Stop existing container if running
+        docker stop project-app-container || true
+        docker rm project-app-container || true
+        
+        # Run new container
+        docker run -d --name project-app-container -p 5000:5000 ${{ env.DOCKER_IMAGE }}:latest
+        
+        echo "Docker container deployed successfully on port 5000"
+
+    - name: Push to Docker Hub (Optional)
+      if: github.event_name == 'push'
+      run: |
+        docker push ${{ env.DOCKER_IMAGE }}:latest
+
+  cleanup:
+    needs: [setup-and-test, deploy]
+    runs-on: ubuntu-latest
+    if: always()
     
-    stages {
-        stage('Setup Environment') {
-            steps {
-                sh '''
-                    echo "=== Setting up Environment ==="
-                    
-                    # Install required packages
-                    apt-get update
-                    apt-get install -y git unzip curl nodejs npm
-                    
-                    # Install Composer
-                    curl -sS https://getcomposer.org/installer | php
-                    mv composer.phar /usr/local/bin/composer
-                    chmod +x /usr/local/bin/composer
-                    
-                    # Verify installations
-                    php --version
-                    composer --version
-                    node --version
-                    npm --version
-                '''
-            }
-        }
-        
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/meyudha/Project.git'
-            }
-        }
-        
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    echo "=== Installing PHP Dependencies ==="
-                    composer install --no-interaction --optimize-autoloader
-                    
-                    echo "=== Installing Node Dependencies ==="
-                    npm ci
-                '''
-            }
-        }
-        
-        stage('Build Assets') {
-            steps {
-                sh '''
-                    echo "=== Building Assets ==="
-                    npm run build
-                '''
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                script {
-                    try {
-                        sh '''
-                            echo "=== Running PHP Tests ==="
-                            if [ -f "vendor/bin/phpunit" ]; then
-                                vendor/bin/phpunit
-                            else
-                                echo "PHPUnit not found, skipping PHP tests"
-                            fi
-                        '''
-                    } catch (Exception e) {
-                        echo "PHP tests failed: ${e.getMessage()}"
-                    }
-                    
-                    try {
-                        sh '''
-                            echo "=== Running JavaScript Tests ==="
-                            if npm list --json | grep -q '"test"'; then
-                                npm test
-                            else
-                                echo "No npm test script found, skipping JS tests"
-                            fi
-                        '''
-                    } catch (Exception e) {
-                        echo "JavaScript tests failed: ${e.getMessage()}"
-                    }
-                }
-            }
-        }
-        
-        stage('Deploy') {
-            steps {
-                sh '''
-                    echo "=== Deployment Stage ==="
-                    echo "Project built successfully"
-                    echo "Files ready for deployment to: ${DEPLOY_TARGET}"
-                '''
-            }
-        }
-    }
-    
-    post {
-        always {
-            echo 'Pipeline execution completed'
-        }
-        success {
-            echo 'Pipeline executed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check the logs above for details.'
-        }
-    }
-}
+    steps:
+    - name: Pipeline Status
+      run: |
+        echo 'Pipeline execution completed'
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo 'Pipeline executed successfully!'
+        else
+          echo 'Pipeline completed with issues. Check individual job logs.'
+        fi
 ```
 ### Hasil Setelah Dilakukan Deploy
 ![image](https://github.com/user-attachments/assets/7b17a7dd-a0ec-4a7d-9321-c72fd8baaeb7)
