@@ -1,4 +1,4 @@
-name: CI/CD Pipeline with Docker
+name: CI/CD Pipeline with Docker and Monitoring
 
 on:
   push:
@@ -9,110 +9,7 @@ on:
 env:
   DEPLOY_TARGET: '/var/www/your-project'
   DOCKER_IMAGE: 'meyudha/project-app'
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    container:
-      image: php:8.2-cli
-      options: --user root
-
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-
-    steps:
-    - name: Setup Environment
-      run: |
-        echo "=== Setting up Environment ==="
-        
-        # Install required packages including Docker
-        apt-get update
-        apt-get install -y git unzip curl nodejs npm docker.io
-        
-        # Install Composer to current directory first
-        curl -sS https://getcomposer.org/installer | php
-        # Move to a writable location
-        cp composer.phar /usr/local/bin/composer
-        chmod +x /usr/local/bin/composer
-        
-        # Verify installations
-        php --version
-        composer --version
-        node --version
-        npm --version
-        docker --version
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Dependencies
-      run: |
-        echo "=== Installing PHP Dependencies ==="
-        composer install --no-interaction --optimize-autoloader
-        
-        echo "=== Installing Node Dependencies ==="
-        npm ci
-
-    - name: Build Assets
-      run: |
-        echo "=== Building Assets ==="
-        npm run build
-
-    - name: Run PHP Tests
-      continue-on-error: true
-      run: |
-        echo "=== Running PHP Tests ==="
-        if [ -f "vendor/bin/phpunit" ]; then
-          vendor/bin/phpunit
-        else
-          echo "PHPUnit not found, skipping PHP tests"
-        fi
-
-    - name: Run JavaScript Tests
-      continue-on-error: true
-      run: |
-        echo "=== Running JavaScript Tests ==="
-        if npm list --json | grep -q '"test"'; then
-          npm test
-        else
-          echo "No npm test script found, skipping JS tests"
-        fi
-
-    - name: Deploy with Docker
-      run: |
-        echo "=== Deployment with Docker ==="
-        # Build Docker Image
-        docker build -t ${{ env.DOCKER_IMAGE }} .
-        # Run Container
-        docker run -d -p 5000:5000 ${{ env.DOCKER_IMAGE }}
-        echo "Docker container deployed successfully."
-
-    - name: Pipeline Status
-      if: always()
-      run: |
-        echo 'Pipeline execution completed'
-        if [ "${{ job.status }}" == "success" ]; then
-          echo 'Pipeline executed successfully!'
-        else
-          echo 'Pipeline failed. Check the logs above for details.'
-        fi
-
----
-# Alternative version using separate jobs for better performance
-name: CI/CD Pipeline with Docker (Optimized)
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  DEPLOY_TARGET: '/var/www/your-project'
-  DOCKER_IMAGE: 'meyudha/project-app'
+  PROMETHEUS_VERSION: '2.47.0'
 
 jobs:
   setup-and-test:
@@ -236,8 +133,8 @@ jobs:
         docker stop project-app-container || true
         docker rm project-app-container || true
         
-        # Run new container
-        docker run -d --name project-app-container -p 5000:5000 ${{ env.DOCKER_IMAGE }}:latest
+        # Run new container with metrics endpoint
+        docker run -d --name project-app-container -p 5000:5000 -p 9090:9090 ${{ env.DOCKER_IMAGE }}:latest
         
         echo "Docker container deployed successfully on port 5000"
 
@@ -246,8 +143,180 @@ jobs:
       run: |
         docker push ${{ env.DOCKER_IMAGE }}:latest
 
+  monitor:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Setup Prometheus Monitoring
+      run: |
+        echo "=== Setting up Prometheus Monitoring ==="
+        
+        # Create prometheus configuration directory
+        mkdir -p prometheus-config
+        
+        # Create prometheus.yml configuration file
+        cat > prometheus-config/prometheus.yml << 'EOF'
+        global:
+          scrape_interval: 15s
+          evaluation_interval: 15s
+
+        rule_files:
+          # - "first_rules.yml"
+          # - "second_rules.yml"
+
+        scrape_configs:
+          - job_name: 'prometheus'
+            static_configs:
+              - targets: ['localhost:9090']
+
+          - job_name: 'project-app'
+            static_configs:
+              - targets: ['host.docker.internal:5000']
+            metrics_path: '/metrics'
+            scrape_interval: 10s
+
+          - job_name: 'node-exporter'
+            static_configs:
+              - targets: ['host.docker.internal:9100']
+
+          - job_name: 'docker'
+            static_configs:
+              - targets: ['host.docker.internal:9323']
+        EOF
+
+        # Create basic alerting rules
+        cat > prometheus-config/alerts.yml << 'EOF'
+        groups:
+        - name: application.rules
+          rules:
+          - alert: ApplicationDown
+            expr: up{job="project-app"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Application instance is down"
+              description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+          - alert: HighResponseTime
+            expr: http_request_duration_seconds{quantile="0.95"} > 1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High response time detected"
+              description: "95th percentile response time is {{ $value }} seconds for {{ $labels.instance }}"
+
+          - alert: HighMemoryUsage
+            expr: (process_resident_memory_bytes / 1024 / 1024) > 500
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage detected"
+              description: "Memory usage is {{ $value }}MB for {{ $labels.instance }}"
+        EOF
+
+    - name: Deploy Prometheus Container
+      run: |
+        echo "=== Deploying Prometheus Container ==="
+        
+        # Stop existing prometheus container if running
+        docker stop prometheus-container || true
+        docker rm prometheus-container || true
+        
+        # Run Prometheus container
+        docker run -d \
+          --name prometheus-container \
+          -p 9090:9090 \
+          -v $(pwd)/prometheus-config:/etc/prometheus \
+          prom/prometheus:v${{ env.PROMETHEUS_VERSION }} \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.console.libraries=/etc/prometheus/console_libraries \
+          --web.console.templates=/etc/prometheus/consoles \
+          --storage.tsdb.retention.time=200h \
+          --web.enable-lifecycle
+        
+        echo "Prometheus deployed successfully on port 9090"
+
+    - name: Deploy Node Exporter
+      run: |
+        echo "=== Deploying Node Exporter ==="
+        
+        # Stop existing node exporter if running
+        docker stop node-exporter || true
+        docker rm node-exporter || true
+        
+        # Run Node Exporter for system metrics
+        docker run -d \
+          --name node-exporter \
+          -p 9100:9100 \
+          --net="host" \
+          --pid="host" \
+          -v "/:/host:ro,rslave" \
+          prom/node-exporter:latest \
+          --path.rootfs=/host
+        
+        echo "Node Exporter deployed successfully on port 9100"
+
+    - name: Enable Docker Metrics
+      run: |
+        echo "=== Enabling Docker Metrics ==="
+        
+        # Create Docker daemon configuration for metrics
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
+        {
+          "metrics-addr": "0.0.0.0:9323",
+          "experimental": true
+        }
+        EOF
+        
+        # Restart Docker daemon to apply configuration
+        sudo systemctl restart docker || echo "Could not restart Docker daemon - may need manual restart"
+        
+        echo "Docker metrics enabled on port 9323"
+
+    - name: Verify Monitoring Setup
+      run: |
+        echo "=== Verifying Monitoring Setup ==="
+        
+        # Wait for containers to be ready
+        sleep 30
+        
+        # Check if Prometheus is running
+        if curl -f http://localhost:9090/-/ready; then
+          echo "✅ Prometheus is running and ready"
+        else
+          echo "❌ Prometheus is not ready"
+        fi
+        
+        # Check if Node Exporter is running
+        if curl -f http://localhost:9100/metrics > /dev/null; then
+          echo "✅ Node Exporter is running"
+        else
+          echo "❌ Node Exporter is not accessible"
+        fi
+        
+        # Check application metrics endpoint
+        if curl -f http://localhost:5000/metrics > /dev/null; then
+          echo "✅ Application metrics endpoint is accessible"
+        else
+          echo "⚠️  Application metrics endpoint not accessible (may need to be implemented)"
+        fi
+        
+        echo ""
+        echo "=== Monitoring Endpoints ==="
+        echo "Prometheus UI: http://localhost:9090"
+        echo "Node Exporter: http://localhost:9100/metrics"
+        echo "Application: http://localhost:5000"
+        echo "Application Metrics: http://localhost:5000/metrics"
+
   cleanup:
-    needs: [setup-and-test, deploy]
+    needs: [setup-and-test, deploy, monitor]
     runs-on: ubuntu-latest
     if: always()
     
@@ -255,8 +324,20 @@ jobs:
     - name: Pipeline Status
       run: |
         echo 'Pipeline execution completed'
-        if [ "${{ needs.deploy.result }}" == "success" ]; then
-          echo 'Pipeline executed successfully!'
+        echo ""
+        echo "=== Job Status Summary ==="
+        echo "Setup and Test: ${{ needs.setup-and-test.result }}"
+        echo "Deploy: ${{ needs.deploy.result }}"
+        echo "Monitor: ${{ needs.monitor.result }}"
+        echo ""
+        
+        if [ "${{ needs.deploy.result }}" == "success" ] && [ "${{ needs.monitor.result }}" == "success" ]; then
+          echo '✅ Pipeline executed successfully with monitoring enabled!'
+          echo ""
+          echo "Access your monitoring dashboard at:"
+          echo "🔍 Prometheus: http://your-server:9090"
+          echo "📊 Node Exporter: http://your-server:9100/metrics"
+          echo "🚀 Application: http://your-server:5000"
         else
-          echo 'Pipeline completed with issues. Check individual job logs.'
+          echo '❌ Pipeline completed with issues. Check individual job logs.'
         fi
