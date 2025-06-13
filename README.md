@@ -2,7 +2,7 @@
 # TUGAS BESAR DEVSECOPS
 ---
 
-## Anggota Tim
+## Anggota Kelompok
 - **Yozarino Hady** - 1103220189
 - **Yudha Afriza Revi** - 1103223032
 - **Kiay Ahmadjaya Cendekia** - 1103223079
@@ -20,7 +20,7 @@
 | **Frontend** | HTML, CSS, JavaScript |
 | **Backend** | PHP, Apache2 |
 | **Database** | MySQL (init.sql) |
-| **Infrastruktur** | Docker (Dockerfile), Jenkins (Jenkinsfile) |
+| **Infrastruktur** | Docker (Dockerfile), GitHub Actions |
 | **Version Control** | Git |
 
 ---
@@ -51,24 +51,11 @@
 
 ### Operasi
 - **Kontainerisasi:** Docker dengan image dasar php8.1-apache
-- **Platform CI/CD:** Jenkins dengan Jenkinsfile berbasis Groovy
+- **Platform CI/CD:** Workflows menggunakan Github Actions
 - **Deployment:** Multi-strategi (penerapan file tradisional + kontainerisasi)
 - **Monitoring:** Docker health check, Apache logging
 
 ---
-
-## Tahapan Pipeline CI/CD
-
-Pipeline Jenkins mengeksekusi 8 tahapan berurutan:
-
-1. **Start**
-2. **Setup Environment**
-3. **Checkout**
-4. **Install Dependencies**
-5. **Build assets**
-6. **Run Tests**
-7. **Deploy**
-8. **End**
 
 **Detail Penerapan:**
 - Menggunakan Node.js 18
@@ -99,7 +86,7 @@ Pipeline Jenkins mengeksekusi 8 tahapan berurutan:
 | **Web** | Apache HTTP Server dalam Kontainer Docker |
 | **Aplikasi** | Runtime PHP 8.1 dengan penerapan kontainerisasi |
 | **Data** | Basis Data MySQL |
-| **CI/CD** | Pipeline Jenkins |
+| **CI/CD** | Workflow GitHub |
 
 ---
 
