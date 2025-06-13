@@ -212,7 +212,7 @@ Akses http://localhost:8080
 https://github.com/meyudha/project.git
 ```
 - Save Job
-### Update isi dari Jenkinsfile
+### Update isi dari 'workflow.yaml' untuk GitHub Action
 ```
 name: CI/CD Pipeline with Docker
 
