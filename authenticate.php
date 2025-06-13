@@ -9,8 +9,8 @@ if (!isset($_POST['token']) || $_POST['token'] !== ($_SESSION['token'] ?? '')) {
 $user = trim($_POST['username'] ?? '');
 $pass = $_POST['password'] ?? '';
 
-if (!preg_match('/^[a-zA-Z0-9_]{4,20}$/', $user)) {
-    die('Username tidak valid. Hanya boleh huruf, angka, dan garis bawah (4-20 karakter).');
+if (!preg_match('/^[a-zA-Z0-9_]{3,20}$/', $user)) {
+    die('Username tidak valid. Hanya boleh huruf, angka, dan garis bawah (3-20 karakter).');
 }
 
 if (strlen($pass) < 6) {
