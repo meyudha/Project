@@ -113,7 +113,7 @@ Pindah ke http://localhost:8000
 ## Test
 Instal OWASP ZAP nya gimana
 ```
-
+git clone https://github.com/zaproxy/zaproxy.git
 ```
 
 ## Release
