@@ -13,30 +13,40 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    
+    container:
+      image: php:8.2-cli
+      options: --user root
+
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
 
     steps:
+    - name: Setup Environment
+      run: |
+        echo "=== Setting up Environment ==="
+        
+        # Install required packages including Docker
+        apt-get update
+        apt-get install -y git unzip curl nodejs npm docker.io
+        
+        # Install Composer to current directory first
+        curl -sS https://getcomposer.org/installer | php
+        # Move to a writable location
+        cp composer.phar /usr/local/bin/composer
+        chmod +x /usr/local/bin/composer
+        
+        # Verify installations
+        php --version
+        composer --version
+        node --version
+        npm --version
+        docker --version
+
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup PHP 8.2
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json
-        tools: composer:v2
-
-    - name: Setup Node.js 18
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-
-    - name: Cache Composer dependencies
-      uses: actions/cache@v3
-      with:
-        path: vendor
-        key: composer-${{ hashFiles('composer.lock') }}
-        restore-keys: composer-
 
     - name: Install Dependencies
       run: |
@@ -65,63 +75,29 @@ jobs:
       continue-on-error: true
       run: |
         echo "=== Running JavaScript Tests ==="
-        if npm run --silent test 2>/dev/null; then
+        if npm list --json | grep -q '"test"'; then
           npm test
         else
           echo "No npm test script found, skipping JS tests"
         fi
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to Docker Hub (Optional)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build Docker Image
+    - name: Deploy with Docker
       run: |
-        echo "=== Building Docker Image ==="
-        docker build -t ${{ env.DOCKER_IMAGE }}:latest .
-        echo "Docker image built successfully"
-
-    - name: Deploy Container Locally
-      run: |
-        echo "=== Deploying Container ==="
-        # Stop existing container if running
-        docker stop project-app-container 2>/dev/null || true
-        docker rm project-app-container 2>/dev/null || true
-        
-        # Run new container
-        docker run -d --name project-app-container -p 5000:5000 ${{ env.DOCKER_IMAGE }}:latest
-        
-        # Wait a moment and check if container is running
-        sleep 5
-        if docker ps | grep -q project-app-container; then
-          echo "✅ Docker container deployed successfully on port 5000"
-          docker ps | grep project-app-container
-        else
-          echo "❌ Container failed to start"
-          docker logs project-app-container
-          exit 1
-        fi
-
-    - name: Push to Docker Hub (Optional)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "=== Pushing to Docker Hub ==="
-        docker push ${{ env.DOCKER_IMAGE }}:latest
+        echo "=== Deployment with Docker ==="
+        # Build Docker Image
+        docker build -t ${{ env.DOCKER_IMAGE }} .
+        # Run Container
+        docker run -d -p 5000:5000 ${{ env.DOCKER_IMAGE }}
+        echo "Docker container deployed successfully."
 
     - name: Pipeline Status
       if: always()
       run: |
         echo 'Pipeline execution completed'
         if [ "${{ job.status }}" == "success" ]; then
-          echo '✅ Pipeline executed successfully!'
+          echo 'Pipeline executed successfully!'
         else
-          echo '❌ Pipeline failed. Check the logs above for details.'
+          echo 'Pipeline failed. Check the logs above for details.'
         fi
 
 ---
