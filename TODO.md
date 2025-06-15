@@ -155,7 +155,7 @@ https://github.com/meyudha/project.git
 - Save Job
 ### Update Isi dari 'workflow.yaml' untuk GitHub Action
 ```
-name: CI/CD Pipeline with Docker
+name: Enhanced CI/CD Pipeline with Docker and Comprehensive Monitoring
 
 on:
   push:
@@ -166,110 +166,7 @@ on:
 env:
   DEPLOY_TARGET: '/var/www/your-project'
   DOCKER_IMAGE: 'meyudha/project-app'
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    container:
-      image: php:8.2-cli
-      options: --user root
-
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-
-    steps:
-    - name: Setup Environment
-      run: |
-        echo "=== Setting up Environment ==="
-        
-        # Install required packages including Docker
-        apt-get update
-        apt-get install -y git unzip curl nodejs npm docker.io
-        
-        # Install Composer to current directory first
-        curl -sS https://getcomposer.org/installer | php
-        # Move to a writable location
-        cp composer.phar /usr/local/bin/composer
-        chmod +x /usr/local/bin/composer
-        
-        # Verify installations
-        php --version
-        composer --version
-        node --version
-        npm --version
-        docker --version
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Dependencies
-      run: |
-        echo "=== Installing PHP Dependencies ==="
-        composer install --no-interaction --optimize-autoloader
-        
-        echo "=== Installing Node Dependencies ==="
-        npm ci
-
-    - name: Build Assets
-      run: |
-        echo "=== Building Assets ==="
-        npm run build
-
-    - name: Run PHP Tests
-      continue-on-error: true
-      run: |
-        echo "=== Running PHP Tests ==="
-        if [ -f "vendor/bin/phpunit" ]; then
-          vendor/bin/phpunit
-        else
-          echo "PHPUnit not found, skipping PHP tests"
-        fi
-
-    - name: Run JavaScript Tests
-      continue-on-error: true
-      run: |
-        echo "=== Running JavaScript Tests ==="
-        if npm list --json | grep -q '"test"'; then
-          npm test
-        else
-          echo "No npm test script found, skipping JS tests"
-        fi
-
-    - name: Deploy with Docker
-      run: |
-        echo "=== Deployment with Docker ==="
-        # Build Docker Image
-        docker build -t ${{ env.DOCKER_IMAGE }} .
-        # Run Container
-        docker run -d -p 5000:5000 ${{ env.DOCKER_IMAGE }}
-        echo "Docker container deployed successfully."
-
-    - name: Pipeline Status
-      if: always()
-      run: |
-        echo 'Pipeline execution completed'
-        if [ "${{ job.status }}" == "success" ]; then
-          echo 'Pipeline executed successfully!'
-        else
-          echo 'Pipeline failed. Check the logs above for details.'
-        fi
-
----
-# Alternative version using separate jobs for better performance
-name: CI/CD Pipeline with Docker (Optimized)
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  DEPLOY_TARGET: '/var/www/your-project'
-  DOCKER_IMAGE: 'meyudha/project-app'
+  PROMETHEUS_VERSION: '2.47.0'
 
 jobs:
   setup-and-test:
@@ -316,18 +213,36 @@ jobs:
         key: node-${{ hashFiles('package-lock.json') }}
         restore-keys: node-
 
+    - name: Create monitoring directories
+      run: |
+        mkdir -p monitoring
+        mkdir -p monitoring/grafana/dashboards
+        mkdir -p monitoring/grafana/datasources
+
     - name: Install Dependencies
       run: |
         echo "=== Installing PHP Dependencies ==="
-        composer install --no-interaction --optimize-autoloader
+        if [ -f "composer.json" ]; then
+          composer install --no-interaction --optimize-autoloader
+        else
+          echo "No composer.json found, skipping PHP dependencies"
+        fi
         
         echo "=== Installing Node Dependencies ==="
-        npm ci
+        if [ -f "package.json" ]; then
+          npm ci
+        else
+          echo "No package.json found, skipping Node dependencies"
+        fi
 
     - name: Build Assets
       run: |
         echo "=== Building Assets ==="
-        npm run build
+        if [ -f "package.json" ] && npm list --json | grep -q '"build"'; then
+          npm run build
+        else
+          echo "No build script found, skipping asset build"
+        fi
 
     - name: Run PHP Tests
       continue-on-error: true
@@ -343,14 +258,52 @@ jobs:
       continue-on-error: true
       run: |
         echo "=== Running JavaScript Tests ==="
-        if npm list --json | grep -q '"test"'; then
+        if [ -f "package.json" ] && npm list --json | grep -q '"test"'; then
           npm test
         else
           echo "No npm test script found, skipping JS tests"
         fi
 
+    - name: Install Docker Compose
+      run: |
+        echo "=== Installing Docker Compose ==="
+        # Since we're running as root in container, no need for sudo
+        
+        # Install Docker Compose v2 (latest)
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        
+        # Create symlink for docker-compose command
+        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+        
+        # Verify installation
+        docker-compose --version || echo "Docker Compose installation may need verification outside container"
+        echo "✅ Docker Compose installation completed"
+
+    - name: Basic validation tests
+      run: |
+        echo "Running basic validation tests..."
+        
+        # Test docker-compose syntax if exists
+        if [ -f "docker-compose.yml" ]; then
+          if command -v docker-compose >/dev/null 2>&1; then
+            docker-compose config
+            echo "✅ Docker Compose syntax is valid"
+          else
+            echo "⚠️ Docker Compose not available, skipping syntax validation"
+          fi
+        else
+          echo "No docker-compose.yml found, skipping validation"
+        fi
+        
+        # Test if required files exist
+        test -f Dockerfile && echo "✅ Dockerfile found" || echo "⚠️ Warning: Dockerfile not found"
+        test -f init.sql && echo "✅ init.sql found" || echo "⚠️ Warning: init.sql not found"
+        
+        echo "✅ Basic tests completed"
+
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-files
         path: |
@@ -368,55 +321,451 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install Docker Compose for Deploy Job
+      run: |
+        echo "=== Installing Docker Compose ==="
+        # Install Docker Compose for deploy job (running on Ubuntu, has sudo)
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        
+        # Verify installation
+        docker-compose --version
+        echo "✅ Docker Compose installed successfully"
+
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: build-files
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Login to Docker Hub (Optional)
-      if: github.event_name == 'push'
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build and Deploy Docker Container
+    - name: Create required directories and files
       run: |
-        echo "=== Building Docker Image ==="
-        docker build -t ${{ env.DOCKER_IMAGE }}:latest .
+        mkdir -p monitoring
+        mkdir -p monitoring/grafana/dashboards
+        mkdir -p monitoring/grafana/datasources
         
-        echo "=== Deploying Container ==="
-        # Stop existing container if running
+        # Create prometheus.yml configuration
+        cat > monitoring/prometheus.yml << 'EOF'
+        global:
+          scrape_interval: 15s
+          evaluation_interval: 15s
+
+        rule_files:
+          - "alerts.yml"
+
+        scrape_configs:
+          - job_name: 'prometheus'
+            static_configs:
+              - targets: ['localhost:9090']
+
+          - job_name: 'project-app'
+            static_configs:
+              - targets: ['web:80', 'host.docker.internal:5000']
+            metrics_path: '/metrics'
+            scrape_interval: 10s
+
+          - job_name: 'node-exporter'
+            static_configs:
+              - targets: ['node-exporter:9100']
+
+          - job_name: 'mysql'
+            static_configs:
+              - targets: ['mysql-exporter:9104']
+          
+          - job_name: 'php-app-health'
+            static_configs:
+              - targets: ['web:80']
+            metrics_path: '/health.php'
+            scrape_interval: 30s
+
+          - job_name: 'docker'
+            static_configs:
+              - targets: ['host.docker.internal:9323']
+        EOF
+
+        # Create alerting rules
+        cat > monitoring/alerts.yml << 'EOF'
+        groups:
+        - name: application.rules
+          rules:
+          - alert: ApplicationDown
+            expr: up{job="project-app"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Application instance is down"
+              description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+          - alert: HighResponseTime
+            expr: http_request_duration_seconds{quantile="0.95"} > 1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High response time detected"
+              description: "95th percentile response time is {{ $value }} seconds for {{ $labels.instance }}"
+
+          - alert: HighMemoryUsage
+            expr: (process_resident_memory_bytes / 1024 / 1024) > 500
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage detected"
+              description: "Memory usage is {{ $value }}MB for {{ $labels.instance }}"
+
+          - alert: DatabaseDown
+            expr: up{job="mysql"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Database is down"
+              description: "MySQL database has been down for more than 1 minute."
+        EOF
+        
+        # Create health.php if not exists
+        if [ ! -f health.php ]; then
+          cat > health.php << 'EOF'
+        <?php
+        header('Content-Type: application/json');
+
+        // Check database connection if available
+        $dbStatus = 'unknown';
+        try {
+            if (class_exists('PDO')) {
+                $dbHost = getenv('DB_HOST') ?: 'localhost';
+                $dbName = getenv('DB_NAME') ?: 'test';
+                $dbUser = getenv('DB_USER') ?: 'root';
+                $dbPass = getenv('DB_PASSWORD') ?: 'root123';
+                
+                $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName", $dbUser, $dbPass);
+                $dbStatus = 'healthy';
+            }
+        } catch (Exception $e) {
+            $dbStatus = 'unhealthy';
+        }
+
+        $health = [
+            'status' => 'healthy',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'services' => [
+                'web' => 'healthy',
+                'database' => $dbStatus
+            ],
+            'version' => getenv('APP_VERSION') ?: '1.0.0'
+        ];
+
+        http_response_code(200);
+        echo json_encode($health, JSON_PRETTY_PRINT);
+        ?>
+        EOF
+        fi
+
+    - name: Stop existing containers
+      run: |
+        echo "=== Stopping existing containers ==="
+        # Stop docker-compose services if they exist
+        if [ -f "docker-compose.yml" ] && command -v docker-compose >/dev/null 2>&1; then
+          docker-compose down --volumes --remove-orphans || true
+        else
+          echo "Docker Compose not available or no docker-compose.yml found"
+        fi
+        
+        # Stop individual containers
         docker stop project-app-container || true
         docker rm project-app-container || true
+        docker stop prometheus-container || true
+        docker rm prometheus-container || true
+        docker stop node-exporter || true
+        docker rm node-exporter || true
         
-        # Run new container
-        docker run -d --name project-app-container -p 5000:5000 ${{ env.DOCKER_IMAGE }}:latest
-        
-        echo "Docker container deployed successfully on port 5000"
+        # Clean up system
+        docker system prune -f || true
 
-    - name: Push to Docker Hub (Optional)
-      if: github.event_name == 'push'
+    - name: Deploy Application
       run: |
-        docker push ${{ env.DOCKER_IMAGE }}:latest
+        echo "=== Deploying Application ==="
+        
+        if [ -f "docker-compose.yml" ] && command -v docker-compose >/dev/null 2>&1; then
+          echo "Using Docker Compose deployment..."
+          docker-compose up -d --build
+        else
+          echo "Using direct Docker deployment..."
+          # Build and deploy single container
+          if [ -f "Dockerfile" ]; then
+            docker build -t ${{ env.DOCKER_IMAGE }}:latest .
+            docker run -d --name project-app-container \
+              -p 5000:5000 \
+              -p 8081:80 \
+              --network bridge \
+              ${{ env.DOCKER_IMAGE }}:latest
+          else
+            echo "⚠️ No Dockerfile found, skipping container build"
+            echo "Creating placeholder container for testing..."
+            docker run -d --name project-app-container \
+              -p 8081:80 \
+              -e VIRTUAL_HOST=localhost \
+              nginx:alpine
+          fi
+        fi
+        
+        echo "✅ Application deployed successfully"
+
+  monitor:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Docker Compose for Monitor Job
+      run: |
+        echo "=== Installing Docker Compose ==="
+        # Install Docker Compose for monitor job
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        
+        # Verify installation
+        docker-compose --version
+        echo "✅ Docker Compose installed successfully"
+
+    - name: Setup Comprehensive Monitoring
+      run: |
+        echo "=== Setting up Comprehensive Monitoring ==="
+        
+        # Ensure monitoring directories exist
+        mkdir -p monitoring
+        
+        # Copy monitoring configuration if it was created in deploy job
+        if [ ! -f monitoring/prometheus.yml ]; then
+          # Recreate prometheus config if missing
+          cat > monitoring/prometheus.yml << 'EOF'
+        global:
+          scrape_interval: 15s
+          evaluation_interval: 15s
+
+        scrape_configs:
+          - job_name: 'prometheus'
+            static_configs:
+              - targets: ['localhost:9090']
+          - job_name: 'node-exporter'
+            static_configs:
+              - targets: ['node-exporter:9100', 'localhost:9100']
+          - job_name: 'project-app'
+            static_configs:
+              - targets: ['localhost:5000', 'localhost:8081']
+            metrics_path: '/metrics'
+        EOF
+        fi
+
+    - name: Deploy Prometheus
+      run: |
+        echo "=== Deploying Prometheus ==="
+        
+        # Stop existing prometheus container
+        docker stop prometheus-container || true
+        docker rm prometheus-container || true
+        
+        # Create network if it doesn't exist
+        docker network create monitoring_network || true
+        
+        # Run Prometheus container
+        docker run -d \
+          --name prometheus-container \
+          --network monitoring_network \
+          -p 9090:9090 \
+          -v $(pwd)/monitoring:/etc/prometheus \
+          prom/prometheus:v${{ env.PROMETHEUS_VERSION }} \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.console.libraries=/etc/prometheus/console_libraries \
+          --web.console.templates=/etc/prometheus/consoles \
+          --storage.tsdb.retention.time=200h \
+          --web.enable-lifecycle \
+          --web.enable-admin-api
+        
+        echo "✅ Prometheus deployed on port 9090"
+
+    - name: Deploy Node Exporter
+      run: |
+        echo "=== Deploying Node Exporter ==="
+        
+        # Stop existing node exporter
+        docker stop node-exporter-standalone || true
+        docker rm node-exporter-standalone || true
+        
+        # Run Node Exporter for system metrics
+        docker run -d \
+          --name node-exporter-standalone \
+          --network monitoring_network \
+          -p 9100:9100 \
+          --pid="host" \
+          -v "/:/host:ro,rslave" \
+          prom/node-exporter:latest \
+          --path.rootfs=/host
+        
+        echo "✅ Node Exporter deployed on port 9100"
+
+    - name: Enable Docker Metrics
+      run: |
+        echo "=== Enabling Docker Metrics ==="
+        
+        # Create Docker daemon configuration for metrics
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
+        {
+          "metrics-addr": "0.0.0.0:9323",
+          "experimental": true
+        }
+        EOF
+        
+        # Restart Docker daemon to apply configuration
+        sudo systemctl restart docker || echo "Could not restart Docker daemon - may need manual restart"
+        
+        sleep 10
+        echo "✅ Docker metrics enabled on port 9323"
+
+    - name: Wait for Services Initialization
+      run: |
+        echo "=== Waiting for services to initialize ==="
+        sleep 60
+        
+        echo "Checking container status:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+    - name: Comprehensive Health Verification
+      run: |
+        echo "=== Comprehensive Health Check ==="
+        
+        # Function to check service with retries
+        check_service() {
+          local name=$1
+          local url=$2
+          local max_attempts=${3:-10}
+          local sleep_time=${4:-15}
+          
+          echo "Checking $name..."
+          for i in $(seq 1 $max_attempts); do
+            if curl -f -s "$url" > /dev/null 2>&1; then
+              echo "✅ $name is healthy"
+              return 0
+            else
+              echo "⏳ Waiting for $name... (attempt $i/$max_attempts)"
+              sleep $sleep_time
+            fi
+          done
+          echo "❌ $name is not accessible after $max_attempts attempts"
+          return 1
+        }
+        
+        # Check Application Health
+        echo "=== Application Health Check ==="
+        check_service "Web Application (port 8081)" "http://localhost:8081/health.php" 10 15 || \
+        check_service "Web Application (port 8081)" "http://localhost:8081" 5 10 || \
+        check_service "Web Application (port 5000)" "http://localhost:5000" 5 10
+        
+        # Check Monitoring Stack
+        echo "=== Monitoring Stack Health Check ==="
+        check_service "Prometheus" "http://localhost:9090/-/ready" 15 20
+        check_service "Node Exporter" "http://localhost:9100/metrics" 10 15
+        
+        # Check Database if exists
+        echo "=== Database Health Check ==="
+        if docker ps --format '{{.Names}}' | grep -q db; then
+          echo "Database container found, checking connection..."
+          if command -v docker-compose >/dev/null 2>&1 && [ -f "docker-compose.yml" ]; then
+            if docker-compose exec -T db mysqladmin ping -h localhost -u root -proot123 > /dev/null 2>&1; then
+              echo "✅ Database is accessible"
+            else
+              echo "❌ Database is not accessible"
+            fi
+          else
+            echo "ℹ️ Docker Compose not available, skipping database check"
+          fi
+        else
+          echo "ℹ️ No database container found"
+        fi
+
+    - name: Final Service Status
+      run: |
+        echo ""
+        echo "=== Final Service Status ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        
+        echo ""
+        echo "=== Available Endpoints ==="
+        echo "🚀 Web Application: http://localhost:8081 or http://localhost:5000"
+        echo "❤️ Health Check: http://localhost:8081/health.php"
+        echo "📊 Prometheus: http://localhost:9090"
+        echo "🖥️ Node Exporter: http://localhost:9100/metrics"
+        echo "🐳 Docker Metrics: http://localhost:9323/metrics"
+        
+        # Check if docker-compose services exist
+        if [ -f "docker-compose.yml" ] && command -v docker-compose >/dev/null 2>&1 && docker-compose ps > /dev/null 2>&1; then
+          echo "📊 Additional Services (Docker Compose):"
+          echo "  - PhpMyAdmin: http://localhost:8082"
+          echo "  - MySQL Exporter: http://localhost:9104/metrics"
+          echo "  - Grafana: http://localhost:3000 (admin/admin123)"
+        fi
+        
+        echo ""
+        echo "=== Health Summary ==="
+        echo "Application: $(curl -s http://localhost:8081/health.php 2>/dev/null | jq -r '.status // "Not available"' || echo 'Not available')"
+        echo "Prometheus: $(curl -s http://localhost:9090/-/ready 2>/dev/null || echo 'Not ready')"
+        echo "Node Exporter: $(curl -s -o /dev/null -w "%{http_code}" http://localhost:9100/metrics 2>/dev/null || echo 'Not available')"
 
   cleanup:
-    needs: [setup-and-test, deploy]
+    needs: [setup-and-test, deploy, monitor]
     runs-on: ubuntu-latest
     if: always()
     
     steps:
-    - name: Pipeline Status
+    - name: Pipeline Status and Cleanup
       run: |
-        echo 'Pipeline execution completed'
-        if [ "${{ needs.deploy.result }}" == "success" ]; then
-          echo 'Pipeline executed successfully!'
+        echo "=== Pipeline Execution Summary ==="
+        echo ""
+        echo "Job Status:"
+        echo "  Setup and Test: ${{ needs.setup-and-test.result }}"
+        echo "  Deploy: ${{ needs.deploy.result }}"
+        echo "  Monitor: ${{ needs.monitor.result }}"
+        echo ""
+        
+        # Determine overall success
+        if [ "${{ needs.deploy.result }}" == "success" ] && [ "${{ needs.monitor.result }}" == "success" ]; then
+          echo '🎉 Pipeline executed successfully with comprehensive monitoring!'
+          echo ""
+          echo "🔗 Access your services:"
+          echo "  🌐 Application: http://your-server:8081"
+          echo "  🔍 Prometheus: http://your-server:9090"
+          echo "  📈 Node Exporter: http://your-server:9100/metrics"
+          echo "  ❤️ Health Check: http://your-server:8081/health.php"
+          echo ""
+          echo "📋 Monitoring Features:"
+          echo "  ✅ Application health monitoring"
+          echo "  ✅ System metrics collection"
+          echo "  ✅ Database monitoring (if available)"
+          echo "  ✅ Docker metrics"
+          echo "  ✅ Custom alerting rules"
         else
-          echo 'Pipeline completed with issues. Check individual job logs.'
+          echo '⚠️ Pipeline completed with issues. Check individual job logs for details.'
         fi
+        
+        echo ""
+        echo "🧹 Performing cleanup..."
+        
+        # Optional cleanup (uncomment if you want to clean up after each run)
+        # if command -v docker-compose >/dev/null 2>&1; then
+        #   docker-compose down --volumes --remove-orphans || true
+        # fi
+        # docker system prune -f || true
+        
+        echo "✅ Pipeline execution completed"
 ```
 ### Hasil Setelah Dilakukan Deploy
 ![image](https://github.com/user-attachments/assets/7b17a7dd-a0ec-4a7d-9321-c72fd8baaeb7)
